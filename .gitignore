@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+__MACOSX
+._*
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Arduino
+*.hex
+*.elf
+*.map
+
+# Build directories
+build/
+*.build/
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*~
+*.swp
+*.bak
