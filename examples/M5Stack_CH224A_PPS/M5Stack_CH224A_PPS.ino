@@ -14,19 +14,34 @@
  * - ボタンC: 電圧を上げる
  */
 
-#include <M5Stack.h>
+#include <M5Unified.h>
 #include <Wire.h>
+
+// M5Stack Pin config
+#define VBUS_I          35
+#define VI_I            36
+#define CFG2_O          22
+#define CFG3_O          21
+#define VBUSEN_O         2
+#define PG_I            12
+
+const int sdaPin = CFG3_O;
+const int sclPin = CFG2_O;
 
 // CH224A I2Cアドレス
 #define CH224A_ADDR 0x22
 
 // CH224Aレジスタアドレス
-#define REG_VOLTAGE_CTRL 0x0A  // 電圧制御レジスタ
-#define REG_PPS_VOLTAGE  0x53  // PPS電圧設定レジスタ
-#define REG_AVS_VOLTAGE_L 0x51 // AVS電圧設定レジスタ(低位)
-#define REG_AVS_VOLTAGE_H 0x52 // AVS電圧設定レジスタ(高位)
+#define REG_I2C_STATUS    0x09
+#define REG_VOLTAGE_CTRL  0x0A
+#define REG_CURRENT_MAX   0x50 //50mA step
+#define REG_AVS_VOLTAGE_H 0x51 //100mV step
+#define REG_AVS_VOLTAGE_L 0x52
+#define REG_PPS_VOLTAGE   0x53 //100mV step
+// 0x60-0x8F REG_SRCCAP_DATA_x
 
-// 電圧モード定義
+
+// 電圧モード
 #define VOLTAGE_5V   0
 #define VOLTAGE_9V   1
 #define VOLTAGE_12V  2
@@ -37,16 +52,16 @@
 #define VOLTAGE_AVS  7
 
 // 固定電圧プリセット
-const int fixedVoltages[] = {5, 9, 12, 15, 20};
-const int fixedVoltageCount = 5;
+const int fixedVoltages[] = {5, 9, 12, 15, 20, 28};
+const int fixedVoltageCount = 6;
 
 // グローバル変数
 bool ppsMode = false;           // PPSモード有効/無効
 int currentFixedIndex = 0;      // 現在の固定電圧インデックス
-int currentPPSVoltage = 90;     // 現在のPPS電圧(0.1V単位、9.0V)
-int minPPSVoltage = 50;         // 最小PPS電圧(5.0V)
-int maxPPSVoltage = 210;        // 最大PPS電圧(21.0V)
-int ppsStep = 2;                // PPS電圧ステップ(0.2V)
+int currentPPSVoltage = 55;     // 現在のPPS電圧(0.1V単位、5.5V)
+int minPPSVoltage = 55;         // 最小PPS電圧(5.5V)
+int maxPPSVoltage = 200;        // 最大PPS電圧(20.0V)
+int ppsStep = 1;                // PPS電圧ステップ(0.1V)
 
 // 関数プロトタイプ
 void writeRegister(uint8_t reg, uint8_t value);
@@ -56,30 +71,36 @@ void updateDisplay();
 void drawButton(int x, int y, int w, int h, const char* label, uint16_t color);
 
 void setup() {
-  // M5Stack初期化
-  M5.begin();
-  M5.Power.begin();
+  pinMode(VBUSEN_O, OUTPUT);
+  digitalWrite(VBUSEN_O, LOW);
+
+  auto cfg = M5.config();
+  cfg.internal_imu = false;
+  cfg.internal_rtc = false;
+  M5.begin(cfg);
   
   // I2C初期化
-  Wire.begin(21, 22);  // SDA=21, SCL=22
+  Wire.begin(sdaPin, sclPin);
   
   // 画面初期化
-  M5.Lcd.fillScreen(BLACK);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(WHITE);
+  M5.Display.fillScreen(BLACK);
+  M5.Display.setTextSize(2);
+  M5.Display.setTextColor(WHITE);
   
   // タイトル表示
-  M5.Lcd.fillRect(0, 0, 320, 40, NAVY);
-  M5.Lcd.setTextColor(WHITE);
-  M5.Lcd.drawCentreString("CH224A PPS Controller", 160, 12, 2);
+  M5.Display.fillRect(0, 0, 320, 35, NAVY);
+  M5.Display.setTextColor(WHITE);
+  M5.Display.drawCentreString("CH224A PPS Controller", 160, 3, 2);
   
-  // 初期電圧設定(9V)
+  // 初期電圧設定(5V)
   delay(100);
-  setFixedVoltage(VOLTAGE_9V);
-  currentFixedIndex = 1;
-  
-  // 画面更新
+  setFixedVoltage(VOLTAGE_5V);
+  currentFixedIndex = 0;
   updateDisplay();
+
+  // 出力ON
+  digitalWrite(VBUSEN_O, HIGH);
+
 }
 
 void loop() {
@@ -166,20 +187,20 @@ void setPPSVoltage(int voltage) {
 // 画面更新
 void updateDisplay() {
   // メイン表示エリアをクリア
-  M5.Lcd.fillRect(0, 40, 320, 180, BLACK);
+  M5.Display.fillRect(0, 40, 320, 180, BLACK);
   
   // モード表示
-  M5.Lcd.setTextColor(YELLOW);
-  M5.Lcd.setTextSize(2);
+  M5.Display.setTextColor(YELLOW);
+  M5.Display.setTextSize(2);
   if (ppsMode) {
-    M5.Lcd.drawCentreString("Mode: PPS", 160, 50, 2);
+    M5.Display.drawCentreString("Mode: PPS", 160, 50, 2);
   } else {
-    M5.Lcd.drawCentreString("Mode: Fixed Voltage", 160, 50, 2);
+    M5.Display.drawCentreString("Mode: Fixed Voltage", 160, 50, 2);
   }
   
   // 電圧表示
-  M5.Lcd.setTextColor(GREEN);
-  M5.Lcd.setTextSize(4);
+  M5.Display.setTextColor(GREEN);
+  M5.Display.setTextSize(2);
   String voltageStr;
   if (ppsMode) {
     float voltage = currentPPSVoltage / 10.0;
@@ -187,14 +208,14 @@ void updateDisplay() {
   } else {
     voltageStr = String(fixedVoltages[currentFixedIndex]) + "V";
   }
-  M5.Lcd.drawCentreString(voltageStr, 160, 100, 4);
+  M5.Display.drawCentreString(voltageStr, 160, 100, 4);
   
   // 電圧範囲表示(PPSモードのみ)
   if (ppsMode) {
-    M5.Lcd.setTextColor(CYAN);
-    M5.Lcd.setTextSize(1);
+    M5.Display.setTextColor(CYAN);
+    M5.Display.setTextSize(2);
     String rangeStr = "Range: " + String(minPPSVoltage / 10.0, 1) + "V - " + String(maxPPSVoltage / 10.0, 1) + "V";
-    M5.Lcd.drawCentreString(rangeStr, 160, 160, 2);
+    M5.Display.drawCentreString(rangeStr, 160, 160, 2);
   }
   
   // ボタンラベル表示
@@ -205,10 +226,10 @@ void updateDisplay() {
 
 // ボタンラベル描画
 void drawButton(int x, int y, int w, int h, const char* label, uint16_t color) {
-  M5.Lcd.fillRect(x, y, w, h, color);
-  M5.Lcd.setTextColor(WHITE);
-  M5.Lcd.setTextSize(1);
+  M5.Display.fillRect(x, y, w, h, color);
+  M5.Display.setTextColor(WHITE);
+  M5.Display.setTextSize(1);
   int textX = x + w / 2;
   int textY = y + h / 2 - 8;
-  M5.Lcd.drawCentreString(label, textX, textY, 2);
+  M5.Display.drawCentreString(label, textX, textY, 2);
 }

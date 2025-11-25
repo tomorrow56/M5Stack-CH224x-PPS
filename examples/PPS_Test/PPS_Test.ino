@@ -2,7 +2,7 @@
  * CH224A PPS Test
  * 
  * PPSモードのテストスケッチ
- * 5.0Vから20.0Vまで0.5Vステップで電圧を上げていきます
+ * 5.5Vから20.0Vまで0.5Vステップで電圧を上げていきます
  */
 
 #include <M5Unified.h>
@@ -43,8 +43,8 @@ const int sclPin = CFG2_O;
 #define VOLTAGE_AVS  7
 
 // PPS電圧設定
-float currentVoltage = 5.0;
-float minVoltage = 5.0;
+float currentVoltage = 5.5;
+float minVoltage = 5.5;
 float maxVoltage = 20.0;
 float voltageStep = 0.5;
 
@@ -112,11 +112,11 @@ void loop() {
   }
   
   // 方向表示
-  M5.Lcd.fillRect(0, 180, 320, 30, BLACK);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(CYAN);
+  M5.Display.fillRect(0, 180, 320, 30, BLACK);
+  M5.Display.setTextSize(2);
+  M5.Display.setTextColor(CYAN);
   String dirStr = increasing ? "Increasing..." : "Decreasing...";
-  M5.Lcd.drawCentreString(dirStr, 160, 185, 2);
+  M5.Display.drawCentreString(dirStr, 160, 185, 2);
   
   delay(100);
 }
@@ -143,9 +143,9 @@ void setPPSVoltage(float voltage) {
 
 // 画面更新
 void updateDisplay() {
-  M5.Lcd.fillRect(0, 80, 320, 80, BLACK);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setTextColor(GREEN);
+  M5.Display.fillRect(0, 80, 320, 80, BLACK);
+  M5.Display.setTextSize(2);
+  M5.Display.setTextColor(GREEN);
   String voltageStr = String(currentVoltage, 1) + "V";
-  M5.Lcd.drawCentreString(voltageStr, 160, 100, 4);
+  M5.Display.drawCentreString(voltageStr, 160, 100, 4);
 }
