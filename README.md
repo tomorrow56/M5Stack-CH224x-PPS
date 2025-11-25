@@ -6,6 +6,8 @@ M5Stack Core BasicでCH224AチップをI2C経由で制御し、USB PD PPSモー�
 
 - **固定電圧モード**: 5V、9V、12V、15V、20Vの固定電圧から選択
 - **PPSモード**: 5.0V～21.0Vの範囲で0.2Vステップで電圧を調整
+- **Source Capabilities解析**: SRCCAPおよびEPR_SRCCAPメッセージの詳細表示
+- **PDOタイプ識別**: Fixed/Battery/Variable/PPS Supplyの自動判別
 - **直感的なUI**: M5Stackの画面に現在の電圧とモードを表示
 - **ボタン操作**: 3つのボタンで簡単に電圧とモードを切り替え
 
@@ -79,11 +81,15 @@ PG (Pin 10) --- [オプション] LED + 抵抗 --- GND
 ### スケッチのアップロード
 
 1. M5Stack Core BasicをUSBケーブルでPCに接続
-2. Arduino IDEで`M5Stack_CH224A_PPS.ino`を開く
+2. Arduino IDEで使用するスケッチを開く:
+   - `examples/M5Stack_CH224A_PPS/M5Stack_CH224A_PPS.ino` (基本PPS制御)
+   - `examples/M5Stack_CH224A_Source_Capabilities/M5Stack_CH224A_Source_Capabilities.ino` (Source Capabilities解析)
 3. ツール → シリアルポートで適切なポートを選択
 4. アップロードボタンをクリック
 
 ### 操作方法
+
+#### M5Stack_CH224A_PPS.ino
 
 M5Stackの3つのボタンで操作します:
 
@@ -97,6 +103,19 @@ M5Stackの3つのボタンで操作します:
 - **ボタンC(右)**: 電圧を上げる
   - 固定電圧モード: 次の電圧プリセットに切り替え
   - PPSモード: 0.2Vずつ電圧を上げる
+
+#### M5Stack_CH224A_Source_Capabilities.ino
+
+Source Capabilities解析ツールの操作:
+
+- **ボタンA(左)**: データ更新
+  - CH224Aから最新のSRCCAP/EPR_SRCCAPデータを読み込み
+
+- **ボタンB(中央)**: 表示モード切替
+  - SRCCAPモード ⇔ EPR_SRCCAPモードを切り替え
+
+- **ボタンC(右)**: 画面クリア
+  - 画面をクリアして再描画
 
 ### 画面表示
 
@@ -155,6 +174,33 @@ CH224AのI2Cアドレスが0x23の場合:
 1. **M5Stackライブラリ**: 最新版のM5Stackライブラリがインストールされているか確認
 2. **ボード設定**: "M5Stack-Core-ESP32"が選択されているか確認
 
+## ライブラリ機能
+
+### CH224Aライブラリ
+
+このプロジェクトにはCH224A制御用の専用ライブラリが含まれています(`src/CH224A.h`, `src/CH224A.cpp`)。
+
+#### 主な機能
+- 固定電圧設定(5V/9V/12V/15V/20V/28V)
+- PPS電圧設定(0.1V単位)
+- AVS電圧設定(0.1V単位)
+- レジスタ読み書き機能
+- I2C通信エラーチェック
+- 接続確認機能
+
+#### 使用例
+```cpp
+#include "src/CH224A.h"
+
+CH224A ch224a;
+
+void setup() {
+  ch224a.begin();
+  ch224a.setVoltage9V();           // 9V固定
+  ch224a.setPPSVoltage(9.0);        // PPS 9.0V
+}
+```
+
 ## 技術仕様
 
 ### CH224A仕様
@@ -180,6 +226,17 @@ CH224AのI2Cアドレスが0x23の場合:
   - 6: PPSモード
   - 7: AVSモード
 
+### CH224Aレジスタ
+
+#### 主要レジスタ
+- **0x0A**: 電圧制御レジスタ
+- **0x50**: 電流データレジスタ
+- **0x51-0x52**: AVS電圧設定レジスタ(16ビット)
+- **0x53**: PPS電圧設定レジスタ
+- **0x60-0x8F**: PD電源データレジスタ
+  - 0x60-0x7F: SRCCAP(Source Capabilities)
+  - 0x80-0x8F: EPR_SRCCAP(EPR Source Capabilities)
+
 ## ライセンス
 
 このプロジェクトはMITライセンスの下で公開されています。
@@ -195,6 +252,12 @@ CH224AのI2Cアドレスが0x23の場合:
 Manus AI Agent
 
 ## バージョン履歴
+
+- **v1.1.0** (2025-11-25): Source Capabilities解析機能追加
+  - SRCCAPおよびEPR_SRCCAPメッセージ読み取り機能
+  - PDOタイプ自動識別と詳細解析
+  - 電圧・電流・電力の実数値表示
+  - CH224Aライブラリの実装
 
 - **v1.0.0** (2025-11-15): 初回リリース
   - 固定電圧モードとPPSモードの実装

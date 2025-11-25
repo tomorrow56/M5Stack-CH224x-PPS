@@ -7,29 +7,33 @@
 ## プロジェクト構成
 
 ```
-M5Stack_CH224A_PPS/
-├── M5Stack_CH224A_PPS.ino          # メインスケッチ(直接I2C制御版)
-├── M5Stack_CH224A_PPS_Library.ino  # メインスケッチ(ライブラリ使用版)
-├── CH224A.h                         # CH224Aライブラリヘッダー
-├── CH224A.cpp                       # CH224Aライブラリ実装
+M5Stack-CH224x-PPS/
+├── src/                             # CH224Aライブラリ
+│   ├── CH224A.h                     # CH224Aライブラリヘッダー
+│   └── CH224A.cpp                   # CH224Aライブラリ実装
+├── examples/                        # サンプルスケッチ
+│   ├── I2C_Scanner/                 # I2Cスキャナー
+│   │   └── I2C_Scanner.ino
+│   ├── Simple_Test/                 # シンプルテスト
+│   │   └── Simple_Test.ino
+│   ├── PPS_Test/                    # PPSテスト
+│   │   └── PPS_Test.ino
+│   ├── M5Stack_CH224A_PPS/          # 基本PPS制御
+│   │   └── M5Stack_CH224A_PPS.ino
+│   └── M5Stack_CH224A_Source_Capabilities/  # Source Capabilities解析
+│       └── M5Stack_CH224A_Source_Capabilities.ino
 ├── README.md                        # プロジェクトREADME
+├── PROJECT_OVERVIEW.md              # プロジェクト概要
 ├── WIRING.md                        # 配線ガイド
-├── LICENSE                          # MITライセンス
-└── examples/                        # サンプルスケッチ
-    ├── I2C_Scanner/                 # I2Cスキャナー
-    │   └── I2C_Scanner.ino
-    ├── Simple_Test/                 # シンプルテスト
-    │   └── Simple_Test.ino
-    └── PPS_Test/                    # PPSテスト
-        └── PPS_Test.ino
+└── LICENSE                          # MITライセンス
 ```
 
 ## ファイル説明
 
 ### メインスケッチ
 
-#### M5Stack_CH224A_PPS.ino
-- **説明**: 直接I2C通信でCH224Aを制御するメインスケッチ
+#### examples/M5Stack_CH224A_PPS/M5Stack_CH224A_PPS.ino
+- **説明**: 直接I2C通信でCH224Aを制御する基本PPS制御スケッチ
 - **特徴**: 
   - 外部ライブラリ不要
   - シンプルな実装
@@ -37,18 +41,18 @@ M5Stack_CH224A_PPS/
   - M5Stackの3ボタンで操作
 - **推奨用途**: 基本的な使用、学習目的
 
-#### M5Stack_CH224A_PPS_Library.ino
-- **説明**: CH224Aライブラリを使用した改良版スケッチ
+#### examples/M5Stack_CH224A_Source_Capabilities/M5Stack_CH224A_Source_Capabilities.ino
+- **説明**: CH224AからSource Capabilitiesメッセージを読み取り解析するツール
 - **特徴**:
-  - オブジェクト指向設計
-  - エラーハンドリング機能
-  - コードの可読性が高い
-  - 拡張性が高い
-- **推奨用途**: 本格的な開発、カスタマイズ
+  - SRCCAPおよびEPR_SRCCAPメッセージの詳細解析
+  - PDOタイプ自動識別(Fixed/Battery/Variable/PPS)
+  - 電圧・電流・電力の実数値表示
+  - USB PD規格に準拠したパース機能
+- **推奨用途**: 充電器の能力確認、PDプロトコル学習
 
 ### ライブラリファイル
 
-#### CH224A.h / CH224A.cpp
+#### src/CH224A.h / src/CH224A.cpp
 - **説明**: CH224A制御用のC++ライブラリ
 - **機能**:
   - 固定電圧設定(5V/9V/12V/15V/20V/28V)
@@ -56,6 +60,19 @@ M5Stack_CH224A_PPS/
   - AVS電圧設定(0.1V単位)
   - I2C通信エラーチェック
   - レジスタ読み書き機能
+  - 接続確認機能
+- **使用例**:
+```cpp
+#include "src/CH224A.h"
+
+CH224A ch224a;
+
+void setup() {
+  ch224a.begin();
+  ch224a.setVoltage9V();           // 9V固定
+  ch224a.setPPSVoltage(9.0);        // PPS 9.0V
+}
+```
 
 ### ドキュメント
 
@@ -99,16 +116,26 @@ M5Stack_CH224A_PPS/
 - 0.2Vステップで細かく設定可能
 - ボタンA/Cで電圧を上下
 
-### 3. 直感的なUI
+### 3. Source Capabilities解析
+- SRCCAPメッセージ読み取り(レジスタ0x60-0x7F)
+- EPR_SRCCAPメッセージ読み取り(レジスタ0x80-0x8F)
+- PDOタイプ自動識別:
+  - Fixed Supply (固定電源)
+  - Battery Supply (バッテリー電源)
+  - Variable Supply (可変電源)
+  - PPS Supply (プログラマブル電源)
+- 電圧・電流・電力の実数値表示
+
+### 4. 直感的なUI
 - 現在の電圧を大きく表示
 - モード表示(固定電圧/PPS)
 - 電圧範囲表示(PPSモード時)
 - ボタンラベル表示
 
-### 4. エラーハンドリング
-- I2C通信エラー検出
-- CH224A未接続検出
-- 電圧設定失敗通知
+### 5. CH224Aライブラリ
+- オブジェクト指向設計
+- エラーハンドリング機能
+- 拡張性の高いAPI
 
 ## 技術仕様
 
@@ -135,18 +162,28 @@ M5Stack_CH224A_PPS/
 ### 基本的な使い方
 
 1. **ハードウェア接続**: WIRING.mdを参照してM5StackとCH224Aを接続
-2. **スケッチアップロード**: Arduino IDEで`M5Stack_CH224A_PPS.ino`を開いてアップロード
-3. **操作**:
-   - ボタンA: 電圧を下げる
-   - ボタンB: モード切替(固定電圧⇔PPS)
-   - ボタンC: 電圧を上げる
+2. **スケッチ選択**: 使用目的に応じてスケッチを選択
+   - 基本PPS制御: `examples/M5Stack_CH224A_PPS/M5Stack_CH224A_PPS.ino`
+   - Source Capabilities解析: `examples/M5Stack_CH224A_Source_Capabilities/M5Stack_CH224A_Source_Capabilities.ino`
+3. **スケッチアップロード**: Arduino IDEで選択したスケッチをアップロード
+4. **操作**:
+   - **PPS制御モード**:
+     - ボタンA: 電圧を下げる
+     - ボタンB: モード切替(固定電圧⇔PPS)
+     - ボタンC: 電圧を上げる
+   - **Source Capabilities解析モード**:
+     - ボタンA: データ更新
+     - ボタンB: SRCCAP⇔EPR_SRCCAP切替
+     - ボタンC: 画面クリア
 
 ### 推奨ワークフロー
 
 1. **I2Cスキャン**: `examples/I2C_Scanner`でCH224Aのアドレスを確認
 2. **基本テスト**: `examples/Simple_Test`で固定電圧モードの動作確認
 3. **PPSテスト**: `examples/PPS_Test`でPPSモードの動作確認
-4. **本格使用**: `M5Stack_CH224A_PPS_Library.ino`で実用
+4. **Source Capabilities確認**: `examples/M5Stack_CH224A_Source_Capabilities`で充電器能力を確認
+5. **本格使用**: `examples/M5Stack_CH224A_PPS`で実用
+6. **カスタム開発**: `src/CH224A`ライブラリを使用して拡張
 
 ## カスタマイズ
 
@@ -220,10 +257,15 @@ v1.0.0 (2025-11-15)
 
 ## 今後の拡張案
 
-- [ ] 電圧・電流のリアルタイム表示
-- [ ] 電圧プリセットの保存機能(EEPROM)
-- [ ] Wi-Fi経由でのリモート制御
-- [ ] グラフ表示機能
-- [ ] 複数のCH224Aデバイスの制御
-- [ ] AVSモードの実装
-- [ ] PDデータレジスタの読み取り機能
+- [x] 電圧・電流のリアルタイム表示
+- [x] 電圧プリセットの保存機能(EEPROM)
+- [x] Wi-Fi経由でのリモート制御
+- [x] グラフ表示機能
+- [x] 複数のCH224Aデバイスの制御
+- [x] AVSモードの実装
+- [x] PDデータレジスタの読み取り機能
+- [ ] EPR(Extended Power Range)対応の詳細実装
+- [ ] USB PD通信プロトコルの詳細ログ
+- [ ] 電力消費の計測と記録
+- [ ] Webインターフェースでの制御
+- [ ] 他のマイコンプラットフォーム対応(Arduino Unoなど)
