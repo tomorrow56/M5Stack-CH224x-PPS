@@ -1,265 +1,232 @@
-# M5Stack Core Basic - CH224A PPS Mode Controller
+# M5Stack-CH224x-PPS
 
-M5Stack Core BasicでCH224AチップをI2C経由で制御し、USB PD PPSモードで電圧を調整するArduinoスケッチです。
+M5Stack（M5Unified対応）でCH224A/CH224K USB PDコントローラをI2C経由で制御し、USB PD PPS/AVSモードで電圧を調整するArduinoライブラリおよびサンプルスケッチ集です。
 
 ## 機能
 
-- **固定電圧モード**: 5V、9V、12V、15V、20Vの固定電圧から選択
-- **PPSモード**: 5.0V～21.0Vの範囲で0.2Vステップで電圧を調整
-- **Source Capabilities解析**: SRCCAPおよびEPR_SRCCAPメッセージの詳細表示
+- **固定電圧モード**: 5V/9V/12V/15V/20V/28Vの固定電圧から選択
+- **PPSモード**: 5.0V～21.0Vの範囲で0.1Vステップで電圧を調整
+- **AVSモード**: 可変電圧設定（16ビット精度）
+- **Source Capabilities解析**: SRCCAP/EPR_SRCCAPメッセージの詳細表示
 - **PDOタイプ識別**: Fixed/Battery/Variable/PPS Supplyの自動判別
-- **直感的なUI**: M5Stackの画面に現在の電圧とモードを表示
-- **ボタン操作**: 3つのボタンで簡単に電圧とモードを切り替え
+- **CH224Aライブラリ**: 再利用可能なライブラリクラス（`src/CH224A.h`）
 
-## ハードウェア接続
+## プロジェクト構成
+
+```
+M5Stack-CH224x-PPS/
+├── src/
+│   ├── CH224A.h          # CH224Aライブラリヘッダ
+│   └── CH224A.cpp        # CH224Aライブラリ実装
+├── examples/
+│   ├── M5Stack_CH224A_PPS/               # PPS電圧制御（GUI付き）
+│   ├── M5Stack_CH224A_Source_Capabilities/ # Source Capabilities解析
+│   ├── Simple_Test/                      # 固定電圧自動切替テスト
+│   ├── PPS_Test/                         # PPS電圧スイープテスト
+│   ├── I2C_Scanner/                      # I2Cデバイススキャナ
+│   └── CH224A_PDO_Test/                  # PDOデコードテスト（シリアル出力）
+├── WIRING.md             # 詳細配線ガイド
+├── LICENSE               # MITライセンス
+└── README.md
+```
+
+## ハードウェア要件
 
 ### 必要な部品
-- M5Stack Core Basic
-- CH224A USB PDチップ(ESSOP10またはDFN10パッケージ)
-- ジャンパーワイヤー
 
-### 接続方法
+- **M5Stack**（M5Unified対応デバイス: Core Basic, Core2, CoreS3等）
+- **CH224A/CH224K** USB PDコントローラ（ESSOP10/DFN10パッケージ）
+- **USB Type-Cコネクタ**
+- **1μFセラミックコンデンサ**（VHV-GND間）
 
-| M5Stack Core Basic | CH224A     | 説明           |
-|--------------------|------------|----------------|
-| GPIO21 (SDA)       | Pin 3 (CFG3/SDA) | I2C データ線 |
-| GPIO22 (SCL)       | Pin 2 (CFG2/SCL) | I2C クロック線 |
-| GND                | Pin 0 (GND)      | グランド      |
+### ピン接続
 
-**注意**: CH224AのCFG2とCFG3ピンは、I2C通信を使用する場合、空きピン(フローティング)にする必要があります。単電阻配置を使用している場合は、抵抗を取り外してください。
+| M5Stack       | CH224A          | 説明             |
+|---------------|-----------------|------------------|
+| GPIO21        | Pin 3 (CFG3/SDA)| I2C データ線     |
+| GPIO22        | Pin 2 (CFG2/SCL)| I2C クロック線   |
+| GND           | Pin 0 (GND)     | グランド         |
+| GPIO2 (※)    | VBUSEN          | 出力イネーブル   |
+| GPIO12 (※)   | Pin 10 (PG)     | Power Good入力   |
 
-### CH224Aの配線例
+※ サンプルスケッチで使用。用途に応じて変更可能。
 
-CH224AをI2Cモードで使用する場合の基本的な配線:
+**重要**: CFG2/CFG3ピンをI2Cとして使用する場合、これらのピンに抵抗を接続しないでください（フローティング状態にする）。
 
-```
-VBUS (USB PD入力) --- [1uF] --- VHV (Pin 1)
-                              |
-                             GND (Pin 0)
-
-USB D+ --- DP (Pin 4)
-USB D- --- DM (Pin 5)
-
-Type-C CC1 --- CC1 (Pin 7)
-Type-C CC2 --- CC2 (Pin 6)
-
-VBUS (電圧検出) --- VBUS (Pin 8)
-
-PG (Pin 10) --- [オプション] LED + 抵抗 --- GND
-```
+詳細な配線については [WIRING.md](WIRING.md) を参照してください。
 
 ## ソフトウェア要件
 
 ### Arduino IDE設定
 
-1. **Arduino IDEのインストール**: [Arduino公式サイト](https://www.arduino.cc/en/software)からダウンロード
-
-2. **M5Stackボードマネージャの追加**:
+1. **M5Stackボードマネージャの追加**:
    - Arduino IDE → ファイル → 環境設定
    - 「追加のボードマネージャのURL」に以下を追加:
      ```
      https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/arduino/package_m5stack_index.json
      ```
 
-3. **M5Stackボードのインストール**:
+2. **M5Stackボードのインストール**:
    - ツール → ボード → ボードマネージャ
    - "M5Stack"で検索してインストール
 
-4. **M5Stackライブラリのインストール**:
+3. **M5Unifiedライブラリのインストール**:
    - スケッチ → ライブラリをインクルード → ライブラリを管理
-   - "M5Stack"で検索してインストール
+   - "M5Unified"で検索してインストール
 
 ### ボード設定
 
-- ボード: "M5Stack-Core-ESP32"
-- Upload Speed: 921600
-- Flash Frequency: 80MHz
-- Partition Scheme: Default
+- **ボード**: M5Stack-Core-ESP32（または使用するM5Stackデバイス）
+- **Upload Speed**: 921600
+- **Flash Frequency**: 80MHz
 
-## 使用方法
+## サンプルスケッチ
 
-### スケッチのアップロード
+### M5Stack_CH224A_PPS
 
-1. M5Stack Core BasicをUSBケーブルでPCに接続
-2. Arduino IDEで使用するスケッチを開く:
-   - `examples/M5Stack_CH224A_PPS/M5Stack_CH224A_PPS.ino` (基本PPS制御)
-   - `examples/M5Stack_CH224A_Source_Capabilities/M5Stack_CH224A_Source_Capabilities.ino` (Source Capabilities解析)
-3. ツール → シリアルポートで適切なポートを選択
-4. アップロードボタンをクリック
+PPS電圧をGUIで制御するメインアプリケーション。
 
-### 操作方法
+**操作方法**:
+- **ボタンA（左）**: 電圧を下げる（固定: 前のプリセット / PPS: -0.1V）
+- **ボタンB（中央）**: モード切替（固定電圧 ⇔ PPS）
+- **ボタンC（右）**: 電圧を上げる（固定: 次のプリセット / PPS: +0.1V）
 
-#### M5Stack_CH224A_PPS.ino
+### M5Stack_CH224A_Source_Capabilities
 
-M5Stackの3つのボタンで操作します:
+USB PD充電器のSource Capabilitiesを解析・表示。
 
-- **ボタンA(左)**: 電圧を下げる
-  - 固定電圧モード: 前の電圧プリセットに切り替え(5V → 9V → 12V → 15V → 20V)
-  - PPSモード: 0.2Vずつ電圧を下げる
+**操作方法**:
+- **ボタンA**: データ更新
+- **ボタンB**: 表示モード切替（SRCCAP ⇔ EPR_SRCCAP）
+- **ボタンC**: 画面クリア
 
-- **ボタンB(中央)**: モード切替
-  - 固定電圧モード ⇔ PPSモードを切り替え
+### Simple_Test
 
-- **ボタンC(右)**: 電圧を上げる
-  - 固定電圧モード: 次の電圧プリセットに切り替え
-  - PPSモード: 0.2Vずつ電圧を上げる
+2秒ごとに固定電圧（5V→9V→12V→15V→20V→28V）を自動切替するテストスケッチ。
 
-#### M5Stack_CH224A_Source_Capabilities.ino
+### PPS_Test
 
-Source Capabilities解析ツールの操作:
+PPS電圧を5.5V～20.0Vの範囲で0.5Vステップで自動スイープするテストスケッチ。
 
-- **ボタンA(左)**: データ更新
-  - CH224Aから最新のSRCCAP/EPR_SRCCAPデータを読み込み
+### I2C_Scanner
 
-- **ボタンB(中央)**: 表示モード切替
-  - SRCCAPモード ⇔ EPR_SRCCAPモードを切り替え
+I2Cバス上のデバイスをスキャンしてアドレスを表示。CH224Aのアドレス確認に使用。
 
-- **ボタンC(右)**: 画面クリア
-  - 画面をクリアして再描画
+### CH224A_PDO_Test
 
-### 画面表示
+PDOデータをシリアルモニタに出力するデバッグ用スケッチ。
 
-- **上部**: タイトルバー(青色背景)
-- **中央上**: 現在のモード(黄色)
-- **中央**: 現在の電圧(緑色、大きく表示)
-- **中央下**: PPSモードの場合、電圧範囲を表示(水色)
-- **下部**: ボタンラベル(青色/オレンジ色)
+## CH224Aライブラリ
 
-## カスタマイズ
+`src/CH224A.h`および`src/CH224A.cpp`に再利用可能なライブラリクラスを提供。
 
-### PPS電圧範囲の変更
-
-スケッチ内の以下の変数を変更することで、PPS電圧範囲をカスタマイズできます:
+### 使用例
 
 ```cpp
-int minPPSVoltage = 50;   // 最小PPS電圧(5.0V) - 0.1V単位
-int maxPPSVoltage = 210;  // 最大PPS電圧(21.0V) - 0.1V単位
-int ppsStep = 2;          // PPS電圧ステップ(0.2V) - 0.1V単位
-```
-
-### 固定電圧プリセットの変更
-
-固定電圧プリセットを変更する場合:
-
-```cpp
-const int fixedVoltages[] = {5, 9, 12, 15, 20, 28};  // 28Vを追加
-const int fixedVoltageCount = 6;  // カウントを更新
-```
-
-### I2Cアドレスの変更
-
-CH224AのI2Cアドレスが0x23の場合:
-
-```cpp
-#define CH224A_ADDR 0x23
-```
-
-## トラブルシューティング
-
-### CH224Aが応答しない
-
-1. **I2C接続を確認**: SDA/SCLの配線が正しいか確認
-2. **I2Cアドレスを確認**: CH224Aのアドレスが0x22または0x23か確認
-3. **プルアップ抵抗**: I2C信号線に4.7kΩのプルアップ抵抗が必要な場合があります
-4. **CFG2/CFG3ピン**: これらのピンが抵抗でGNDやVHVに接続されていないか確認
-
-### 電圧が変わらない
-
-1. **USB PD対応**: 接続しているUSB PD充電器がPPSをサポートしているか確認
-2. **ケーブル**: USB PD対応のケーブルを使用しているか確認
-3. **電圧範囲**: 充電器がサポートする電圧範囲内で設定しているか確認
-
-### 画面が表示されない
-
-1. **M5Stackライブラリ**: 最新版のM5Stackライブラリがインストールされているか確認
-2. **ボード設定**: "M5Stack-Core-ESP32"が選択されているか確認
-
-## ライブラリ機能
-
-### CH224Aライブラリ
-
-このプロジェクトにはCH224A制御用の専用ライブラリが含まれています(`src/CH224A.h`, `src/CH224A.cpp`)。
-
-#### 主な機能
-- 固定電圧設定(5V/9V/12V/15V/20V/28V)
-- PPS電圧設定(0.1V単位)
-- AVS電圧設定(0.1V単位)
-- レジスタ読み書き機能
-- I2C通信エラーチェック
-- 接続確認機能
-
-#### 使用例
-```cpp
+#include <Wire.h>
 #include "src/CH224A.h"
 
 CH224A ch224a;
 
 void setup() {
-  ch224a.begin();
-  ch224a.setVoltage9V();           // 9V固定
-  ch224a.setPPSVoltage(9.0);        // PPS 9.0V
+  Wire.begin(21, 22);
+  
+  if (ch224a.begin()) {
+    // 固定電圧設定
+    ch224a.setVoltage9V();
+    
+    // PPS電圧設定（9.5V）
+    ch224a.setPPSVoltage(9.5);
+    
+    // AVS電圧設定（12.0V）
+    ch224a.setAVSVoltage(12.0);
+  }
 }
 ```
 
-## 技術仕様
+### API
 
-### CH224A仕様
-- **対応プロトコル**: USB PD3.2 EPR、AVS、PPS、SPR、BC1.2
+| メソッド                          | 説明                           |
+|-----------------------------------|--------------------------------|
+| `begin(TwoWire &wire)`            | 初期化・接続確認               |
+| `isConnected()`                   | I2C接続確認                    |
+| `setVoltage5V()` ～ `setVoltage28V()` | 固定電圧設定               |
+| `setFixedVoltage(CH224A_VoltageMode)` | 電圧モード設定             |
+| `setPPSVoltage(float voltage)`    | PPS電圧設定（V単位）           |
+| `setPPSVoltageRaw(uint8_t value)` | PPS電圧設定（0.1V単位）        |
+| `setAVSVoltage(float voltage)`    | AVS電圧設定（V単位）           |
+| `setAVSVoltageRaw(uint16_t value)`| AVS電圧設定（0.1V単位）        |
+| `readRegister(reg, &value)`       | レジスタ読み込み               |
+| `writeRegister(reg, value)`       | レジスタ書き込み               |
+
+## CH224A技術仕様
+
+### 対応プロトコル
+
+- USB PD3.2 EPR（Extended Power Range）
+- USB PD PPS（Programmable Power Supply）
+- USB PD AVS（Adjustable Voltage Supply）
+- USB PD SPR（Standard Power Range）
+- BC1.2
+
+### 電気的仕様
+
 - **入力電圧範囲**: 4V～30V
-- **I2C通信速度**: 400kHz
-- **I2Cアドレス**: 0x22または0x23
+- **I2C通信速度**: 最大400kHz
+- **I2Cアドレス**: 0x22（デフォルト）または0x23
 
-### PPS電圧設定
-- **レジスタ**: 0x53
-- **単位**: 0.1V(100mV)
-- **範囲**: 通常5.0V～21.0V(充電器による)
+### レジスタマップ
 
-### 固定電圧設定
-- **レジスタ**: 0x0A
-- **値**:
-  - 0: 5V
-  - 1: 9V
-  - 2: 12V
-  - 3: 15V
-  - 4: 20V
-  - 5: 28V
-  - 6: PPSモード
-  - 7: AVSモード
+| アドレス    | 名称                | 説明                     |
+|-------------|---------------------|--------------------------|
+| 0x09        | I2C_STATUS          | I2C状態                  |
+| 0x0A        | VOLTAGE_CTRL        | 電圧制御（0-7）          |
+| 0x50        | CURRENT_DATA        | 電流データ（50mA単位）   |
+| 0x51-0x52   | AVS_VOLTAGE         | AVS電圧（16ビット）      |
+| 0x53        | PPS_VOLTAGE         | PPS電圧（0.1V単位）      |
+| 0x60-0x7F   | SRCCAP_DATA         | Source Capabilities      |
+| 0x80-0x8F   | EPR_SRCCAP_DATA     | EPR Source Capabilities  |
 
-### CH224Aレジスタ
+### 電圧制御レジスタ（0x0A）の値
 
-#### 主要レジスタ
-- **0x0A**: 電圧制御レジスタ
-- **0x50**: 電流データレジスタ
-- **0x51-0x52**: AVS電圧設定レジスタ(16ビット)
-- **0x53**: PPS電圧設定レジスタ
-- **0x60-0x8F**: PD電源データレジスタ
-  - 0x60-0x7F: SRCCAP(Source Capabilities)
-  - 0x80-0x8F: EPR_SRCCAP(EPR Source Capabilities)
+| 値 | モード    |
+|----|-----------|
+| 0  | 5V固定    |
+| 1  | 9V固定    |
+| 2  | 12V固定   |
+| 3  | 15V固定   |
+| 4  | 20V固定   |
+| 5  | 28V固定   |
+| 6  | PPSモード |
+| 7  | AVSモード |
+
+## トラブルシューティング
+
+### CH224Aが応答しない
+
+1. SDA/SCLの配線を確認
+2. I2Cアドレスを確認（`I2C_Scanner`スケッチを使用）
+3. CFG2/CFG3ピンに抵抗が接続されていないか確認
+4. 必要に応じて4.7kΩプルアップ抵抗を追加
+
+### 電圧が変わらない
+
+1. USB PD充電器がPPS/AVSをサポートしているか確認
+2. USB PD対応ケーブルを使用しているか確認
+3. 充電器がサポートする電圧範囲内で設定しているか確認
+
+### 画面が表示されない
+
+1. M5Unifiedライブラリが正しくインストールされているか確認
+2. 適切なボードが選択されているか確認
 
 ## ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。
+MITライセンス - 詳細は [LICENSE](LICENSE) を参照
 
 ## 参考資料
 
 - [CH224Aデータシート](https://wch.cn)
 - [M5Stack公式ドキュメント](https://docs.m5stack.com)
+- [M5Unified GitHub](https://github.com/m5stack/M5Unified)
 - [USB Power Delivery仕様](https://www.usb.org/usb-charger-pd)
-
-## 作成者
-
-Manus AI Agent
-
-## バージョン履歴
-
-- **v1.1.0** (2025-11-25): Source Capabilities解析機能追加
-  - SRCCAPおよびEPR_SRCCAPメッセージ読み取り機能
-  - PDOタイプ自動識別と詳細解析
-  - 電圧・電流・電力の実数値表示
-  - CH224Aライブラリの実装
-
-- **v1.0.0** (2025-11-15): 初回リリース
-  - 固定電圧モードとPPSモードの実装
-  - M5Stack画面UIの実装
-  - ボタン操作による電圧制御
