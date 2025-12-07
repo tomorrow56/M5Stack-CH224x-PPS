@@ -68,6 +68,7 @@ void setup() {
   
   // I2C初期化
   Wire.begin(sdaPin, sclPin);
+  Serial.begin(115200);
   
   // 画面初期化
   M5.Display.fillScreen(BLACK);
@@ -141,7 +142,11 @@ bool readPDData() {
   if (bytesReceived == 48) {
     for (int i = 0; i < 48; i++) {
       pdData[i] = Wire.read();
-//      M5.Display.printf("0x%02x", pdData[i]);
+      if(i % 4 == 3){
+        Serial.printf("%02x\n", pdData[i]);
+      }else{
+        Serial.printf("%02x ", pdData[i]);
+      }
     }
     return true;
   }
@@ -205,10 +210,10 @@ void displayPDODetails(int pdoCount) {
   // 各PDOを解析して表示
   for (int i = 0; i < pdoCount; i++) {
     // PDOは4バイト（32ビット）
-    pdo[i] = ((uint32_t)pdData[i*4 + 0] << 24) |
-             ((uint32_t)pdData[i*4 + 1] << 16) |
-             ((uint32_t)pdData[i*4 + 2] << 8) |
-             (uint32_t)pdData[i*4 + 3];
+    pdo[i] = ((uint32_t)pdData[i*4 + 0] << 16) |
+             ((uint32_t)pdData[i*4 + 1] << 24) |
+             ((uint32_t)pdData[i*4 + 2] << 0) |
+             ((uint32_t)pdData[i*4 + 3] << 8);
 
     M5.Display.setTextColor(YELLOW);
     M5.Display.print("PDO " + String(i + 1) + ": ");
