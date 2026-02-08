@@ -72,6 +72,16 @@ public:
   
   // I2Cアドレス取得
   uint8_t getI2CAddress() { return _i2cAddress; }
+  
+  // PDO解析機能
+  bool readSourceCapabilities(uint8_t* data, size_t length);
+  uint8_t getPDOCount(uint16_t header);
+  void decodeHeader(uint16_t header);
+  void decodePDOs(uint8_t* data, uint8_t numPDO);
+  void parseFixedPDO(uint32_t pdo, float& voltage, float& current);
+  void parseVariablePDO(uint32_t pdo, float& minVoltage, float& maxVoltage, float& current);
+  void parsePPSPDO(uint32_t pdo, float& minVoltage, float& maxVoltage, float& current);
+  uint8_t getPDOType(uint32_t pdo);
 
 private:
   uint8_t _i2cAddress;
