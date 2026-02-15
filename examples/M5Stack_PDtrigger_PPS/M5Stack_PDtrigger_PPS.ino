@@ -55,12 +55,26 @@ float PPS_MIN = 5.0;
 float PPS_MAX = 20.0;
 float currentPPSVoltage = 5.0;
 
+// PDO list display variables
+uint8_t availablePDOs[7];  // Available PDO list
+uint8_t numAvailablePDOs = 0;
+uint8_t selectedPDO = 0;   // Currently selected PDO in list
+bool pdoListNeedsUpdate = true;  // Flag to update PDO list display
+bool pdoModeSupported[6] = {true, true, true, true, true, false};
+
 CH224A ch224a;
 
 uint32_t updateTime = 0;       // time for next update
 uint8_t interval = 100;  // Update interval
 
 bool pdoDecodeFirstDraw = true;
+
+const uint32_t PPS_HOLD_START_MS = 1000;
+const uint32_t PPS_HOLD_REPEAT_MS = 120;
+uint32_t ppsHoldStartA = 0;
+uint32_t ppsHoldStartC = 0;
+uint32_t ppsLastRepeatA = 0;
+uint32_t ppsLastRepeatC = 0;
 
 static void setMainTextColor() {
   if (OE) {
@@ -136,10 +150,15 @@ static void updateBtnLabels() {
     return;
   }
   if (PDO == 4 && !PPS_CONTROL) {
-    drawBtnMenu("DOWN", OE ? "OFF" : "ON", "PPS");
+    drawBtnMenu("DOWN", OE ? "OFF" : "ON", pdoModeSupported[5] ? "PPS" : "");
     return;
   }
   drawBtnMenu("DOWN", OE ? "OFF" : "ON", "UP");
+}
+
+static void updateSelectedPDO() {
+  selectedPDO = PDO;
+  pdoListNeedsUpdate = true;
 }
 
 static bool applyPdoVoltage(uint8_t pdo) {
@@ -198,6 +217,12 @@ void setup(void) {
   // M5.Display.setRotation(1);
   M5.Display.fillScreen(TFT_BLACK);
   drawTitle("M5 PD Analyzer");
+  
+  // Initialize available PDOs list
+  updateAvailablePDOs();
+  updateSelectedPDO();
+  pdoListNeedsUpdate = true;
+  
   updateBtnLabels();
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
 
@@ -223,8 +248,10 @@ void loop() {
     updateTime = millis() + interval; // Update interval
 
     if(PDO_DECODE_MODE){
-      // Show PDO decode information
-      drawPDODecode();
+      // Draw once on entry (no periodic update to avoid flicker)
+      if (pdoDecodeFirstDraw) {
+        drawPDODecode();
+      }
     } else {
       // Normal operation
       vbus_v = readVoltage(analogRead(VBUS_I)) * vScale;  // read data from CH1
@@ -234,6 +261,12 @@ void loop() {
       }
       vbus_i_temp[0]= readVoltage(analogRead(VI_I));    // read data from CH2
       vbus_i = (averageVI() - vi_0cal) / ((vi_2A - vi_0A) / 2);
+
+      // Draw PDO list only when needed
+      if(pdoListNeedsUpdate){
+        drawPDOList();
+        pdoListNeedsUpdate = false;
+      }
 
 #ifndef CALIBRATE
       dtostrf(vbus_v,4,1,buf1);
@@ -314,24 +347,35 @@ void loop() {
         // Exit PPS control mode
         PPS_CONTROL = false;
         PDO = 0;
+        updateSelectedPDO();
         updateBtnLabels();
       }
     } else if(PDO_DECODE_MODE){
-      // Do nothing in PDO decode mode - only C button exits
+      // Navigate PDO list left
+      if(selectedPDO > 0){
+        selectedPDO--;
+      } else {
+        selectedPDO = numAvailablePDOs - 1;
+      }
+      pdoListNeedsUpdate = true;
     } else if(PDO == 0 && !PPS_CONTROL){
       // Enter PDO decode mode
       PDO_DECODE_MODE = true;
       pdoDecodeFirstDraw = true;
+      updateAvailablePDOs();
+      selectedPDO = 0;
+      pdoListNeedsUpdate = true;
       updateBtnLabels();
     } else if(PDO > 0){
       PDO--;
+      updateSelectedPDO();
       updateBtnLabels();
     }
   }
   
   if(M5.BtnB.wasPressed()){
     if(PDO_DECODE_MODE){
-      // Ignore OE toggle in PDO decode mode
+      // Do nothing in PDO decode mode - B button is disabled
     } else
     if(OE == false){
       OE = true;
@@ -346,16 +390,17 @@ void loop() {
 
   if(M5.BtnC.wasPressed()){
     if(PDO_DECODE_MODE){
-      // Exit PDO decode mode and redraw screen
+      // Exit PDO decode mode without changing PDO
       PDO_DECODE_MODE = false;
       pdoDecodeFirstDraw = true;
       M5.Display.fillScreen(TFT_BLACK);
       drawTitle("M5 PD Analyzer");
+      updateSelectedPDO();  // Restore selected PDO to match current PDO
       updateBtnLabels();
       M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
     } else if(PDO == 5 && !PPS_CONTROL){
       // Enter PPS control mode
-      if (updatePpsRangeFromPdo()) {
+      if (pdoModeSupported[5] && updatePpsRangeFromPdo()) {
         PPS_CONTROL = true;
         currentPPSVoltage = PPS_MIN;
         updateBtnLabels();
@@ -367,9 +412,64 @@ void loop() {
         ch224a.setPPSVoltage(currentPPSVoltage);
       }
     } else if(PDO < 5){
-      PDO++;
-      updateBtnLabels();
+      if (PDO == 4 && !pdoModeSupported[5]) {
+        // Keep 20V when PPS is not supported
+      } else {
+        PDO++;
+        updateSelectedPDO();
+        updateBtnLabels();
+      }
     }
+  }
+
+  if (PPS_CONTROL && !PDO_DECODE_MODE) {
+    const float eps = 0.001;
+    uint32_t now = millis();
+
+    if (M5.BtnA.isPressed()) {
+      if (ppsHoldStartA == 0) {
+        ppsHoldStartA = now;
+        ppsLastRepeatA = now;
+      } else if ((now - ppsHoldStartA) >= PPS_HOLD_START_MS
+        && (now - ppsLastRepeatA) >= PPS_HOLD_REPEAT_MS) {
+        if (currentPPSVoltage > (PPS_MIN + eps)) {
+          currentPPSVoltage -= 0.1;
+          if (currentPPSVoltage < PPS_MIN) {
+            currentPPSVoltage = PPS_MIN;
+          }
+          ch224a.setPPSVoltage(currentPPSVoltage);
+        }
+        ppsLastRepeatA = now;
+      }
+    } else {
+      ppsHoldStartA = 0;
+      ppsLastRepeatA = 0;
+    }
+
+    if (M5.BtnC.isPressed()) {
+      if (ppsHoldStartC == 0) {
+        ppsHoldStartC = now;
+        ppsLastRepeatC = now;
+      } else if ((now - ppsHoldStartC) >= PPS_HOLD_START_MS
+        && (now - ppsLastRepeatC) >= PPS_HOLD_REPEAT_MS) {
+        if (currentPPSVoltage < (PPS_MAX - eps)) {
+          currentPPSVoltage += 0.1;
+          if (currentPPSVoltage > PPS_MAX) {
+            currentPPSVoltage = PPS_MAX;
+          }
+          ch224a.setPPSVoltage(currentPPSVoltage);
+        }
+        ppsLastRepeatC = now;
+      }
+    } else {
+      ppsHoldStartC = 0;
+      ppsLastRepeatC = 0;
+    }
+  } else {
+    ppsHoldStartA = 0;
+    ppsHoldStartC = 0;
+    ppsLastRepeatA = 0;
+    ppsLastRepeatC = 0;
   }
 
 }
@@ -421,16 +521,30 @@ void drawPG(float vbus_v, bool PG){
 }
 
 void drawPDODecode(){
+  const int panelX = 20;
+  const int panelY = 46;
+  const int panelW = 280;
+  const int panelH = 156;
+  const int headerH = 24;
+
   if(pdoDecodeFirstDraw){
     M5.Display.fillScreen(TFT_BLACK);
     drawTitle("PDO Decode");
     drawBtnMenu("", "", "EXIT");
-    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-    // Clear PDO display area once on entry
-    M5.Display.fillRect(0, 40, 320, 170, TFT_BLACK);
+
+    // Sub-window style panel (shadow + border + header)
+    M5.Display.fillRect(panelX + 3, panelY + 3, panelW, panelH, TFT_DARKGREY);
+    M5.Display.fillRect(panelX, panelY, panelW, panelH, TFT_BLACK);
+    M5.Display.drawRect(panelX, panelY, panelW, panelH, TFT_CYAN);
+    M5.Display.fillRect(panelX + 2, panelY + 2, panelW - 4, headerH, TFT_BLUE);
+    M5.Display.setTextColor(TFT_WHITE, TFT_BLUE);
+    M5.Display.drawCentreString("Source Capabilities", panelX + panelW / 2, panelY + 4, 2);
+
     pdoDecodeFirstDraw = false;
   }
 
+  // Clear only sub-window content area
+  M5.Display.fillRect(panelX + 4, panelY + headerH + 4, panelW - 8, panelH - headerH - 8, TFT_BLACK);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   
   // Read and decode PDO data
@@ -438,44 +552,147 @@ void drawPDODecode(){
   if(ch224a.readSourceCapabilities(data, sizeof(data))){
     uint16_t header = data[0] | (data[1] << 8);
     uint8_t numPDO = ch224a.getPDOCount(header);
-    
+
     // Display each PDO (up to 7 PDOs)
     for(int i = 0; i < numPDO && i < 7; i++){
       uint32_t pdo = data[i*4 + 2] | (data[i*4 + 3] << 8) | (data[i*4 + 4] << 16) | (data[i*4 + 5] << 24);
       uint8_t pdoType = ch224a.getPDOType(pdo);
       
-      String pdoInfo = "PDO" + String(i+1) + ": ";
+      String pdoInfo = "";
       
       switch(pdoType){
         case 0: // Fixed Supply
           {
             float voltage, current;
             ch224a.parseFixedPDO(pdo, voltage, current);
-            pdoInfo += String(voltage, 1) + "V/" + String(current, 1) + "A";
+            pdoInfo = "Fixed: " + String(voltage, 2) + "V " + String(current, 2) + "A";
           }
           break;
         case 1: // Variable Supply
           {
             float minVoltage, maxVoltage, current;
             ch224a.parseVariablePDO(pdo, minVoltage, maxVoltage, current);
-            pdoInfo += String(minVoltage, 1) + "-" + String(maxVoltage, 1) + "V";
+            pdoInfo = "Var: " + String(minVoltage, 2) + "-" + String(maxVoltage, 2) + "V";
           }
           break;
         case 3: // PPS
           {
             float minVoltage, maxVoltage, current;
             ch224a.parsePPSPDO(pdo, minVoltage, maxVoltage, current);
-            pdoInfo += "PPS " + String(minVoltage, 1) + "-" + String(maxVoltage, 1) + "V";
+            pdoInfo = "PPS: " + String(minVoltage, 2) + "-" + String(maxVoltage, 2) + "V " + String(current, 2) + "A";
           }
           break;
         default:
-          pdoInfo += "Unknown";
+          pdoInfo = "Unknown";
           break;
       }
-      M5.Display.drawString(pdoInfo, 5, 40 + i*22, 2); // Font size 2 for better readability
+      M5.Display.drawString(pdoInfo, panelX + 12, panelY + headerH + 10 + i * 16, 2);
     }
   } else {
-    M5.Display.drawString("Read Error", 5, 40, 2);
+    M5.Display.drawCentreString("Read Error", panelX + panelW / 2, panelY + headerH + 10, 2);
+  }
+}
+
+void updateAvailablePDOs() {
+  uint8_t data[48];
+  numAvailablePDOs = 0;
+  for (int i = 0; i < 6; i++) {
+    pdoModeSupported[i] = false;
+  }
+  
+  if(ch224a.readSourceCapabilities(data, sizeof(data))){
+    uint16_t header = data[0] | (data[1] << 8);
+    uint8_t numPDO = ch224a.getPDOCount(header);
+    
+    // Add available PDOs to list (only fixed voltages 5V-20V)
+    for(int i = 0; i < numPDO && i < 7; i++){
+      uint32_t pdo = data[i*4 + 2] | (data[i*4 + 3] << 8) | (data[i*4 + 4] << 16) | (data[i*4 + 5] << 24);
+      uint8_t pdoType = ch224a.getPDOType(pdo);
+      
+      if(pdoType == 0) { // Fixed Supply
+        float voltage, current;
+        ch224a.parseFixedPDO(pdo, voltage, current);
+
+        uint8_t mode = 255;
+        if (voltage >= 4.5 && voltage < 6.0) {
+          mode = 0;
+        } else if (voltage >= 8.5 && voltage < 10.0) {
+          mode = 1;
+        } else if (voltage >= 11.5 && voltage < 13.0) {
+          mode = 2;
+        } else if (voltage >= 14.5 && voltage < 16.0) {
+          mode = 3;
+        } else if (voltage >= 19.0 && voltage < 21.0) {
+          mode = 4;
+        }
+
+        if (mode < 5) {
+          pdoModeSupported[mode] = true;
+          bool exists = false;
+          for (int j = 0; j < numAvailablePDOs; j++) {
+            if (availablePDOs[j] == mode) {
+              exists = true;
+              break;
+            }
+          }
+          if (!exists && numAvailablePDOs < 7) {
+            availablePDOs[numAvailablePDOs++] = mode;
+          }
+        }
+      } else if (pdoType == 3) { // PPS
+        pdoModeSupported[5] = true;
+        bool exists = false;
+        for (int j = 0; j < numAvailablePDOs; j++) {
+          if (availablePDOs[j] == 5) {
+            exists = true;
+            break;
+          }
+        }
+        if (!exists && numAvailablePDOs < 7) {
+          availablePDOs[numAvailablePDOs++] = 5;
+        }
+      }
+    }
+  }
+}
+
+void drawPDOList() {
+  // Clear PDO list area completely
+  M5.Display.fillRect(0, 175, 320, 30, TFT_BLACK);
+
+  const char* labels[6] = {"5V", "9V", "12V", "15V", "20V", "PPS"};
+  int listStartX = 20;
+  int listWidth = 280;
+  int itemWidth = listWidth / 6;
+
+  for(int i = 0; i < 6; i++){
+    bool isSelected = (PDO == i);
+    bool isSupported = pdoModeSupported[i];
+    String pdoText = String(labels[i]);
+    
+    // Calculate text position
+    int textX = listStartX + i * itemWidth + itemWidth/2;
+    int textY = 183;  // Moved up by half character
+    
+    // Draw tight highlight box only for selected item
+    if(isSelected){
+      int boxW = 34;
+      int boxH = 18;
+      int maxW = itemWidth - 8;
+      if (boxW > maxW) {
+        boxW = maxW;
+      }
+      int boxX = textX - (boxW / 2);
+      int boxY = textY - 2;
+      M5.Display.fillRect(boxX, boxY, boxW, boxH, TFT_CYAN);
+      M5.Display.setTextColor(TFT_BLACK);
+    } else {
+      M5.Display.setTextColor(isSupported ? TFT_WHITE : TFT_LIGHTGREY);
+    }
+    
+    // Draw text with smaller font and center alignment
+    M5.Display.setTextSize(1);
+    M5.Display.drawCentreString(pdoText, textX, textY, 2);  // Font size 2 for smaller text
   }
 }
 
