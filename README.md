@@ -39,19 +39,19 @@ M5Stack-CH224x-PPS/
 ### Required Components
 
 - **M5Stack** (M5Unified compatible device: Core Basic, Core2, CoreS3, etc.)
-- **CH224A/CH224K** USB PD controller (ESSOP10/DFN10 package)
+- **CH224A/CH224Q** USB PD controller (ESSOP10/DFN10 package)
 - **USB Type-C connector**
 - **1μF ceramic capacitor** (between VHV-GND)
 
 ### Pin Connections
 
-| M5Stack       | CH224A          | Description              |
-|---------------|-----------------|--------------------------|
-| GPIO21        | Pin 3 (CFG3/SDA)| I2C data line           |
-| GPIO22        | Pin 2 (CFG2/SCL)| I2C clock line          |
-| GND           | Pin 0 (GND)     | Ground                  |
-| GPIO2 (※)    | VBUSEN          | Output enable           |
-| GPIO12 (※)   | Pin 10 (PG)     | Power Good input        |
+| M5Stack       | CH224A          | Description               |
+|---------------|-----------------|---------------------------|
+| GPIO21        | Pin 3 (CFG3/SDA)| I2C data line            |
+| GPIO22        | Pin 2 (CFG2/SCL)| I2C clock line           |
+| GND           | Pin 0 (GND)     | Ground                   |
+| GPIO2 (※)    | VBUSEN          | Output enable            |
+| GPIO12 (※)   | Pin 10 (PG)     | Power Good input         |
 
 ※ Used in sample sketches. Can be changed according to your purpose.
 
@@ -66,6 +66,7 @@ For detailed wiring information, see [WIRING.md](WIRING.md).
 1. **Add M5Stack Board Manager**:
    - Arduino IDE → File → Preferences
    - Add to "Additional Board Manager URLs":
+
      ```text
      https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/arduino/package_m5stack_index.json
      ```
@@ -112,15 +113,19 @@ Legacy version of PPS voltage control GUI application.
 Contains the following test and debug sketches.
 
 #### CH224A_PDO_Test
+
 Debug sketch that outputs PDO data to serial monitor. Displays raw data and parsed results of Source Capabilities.
 
 #### I2C_Scanner
+
 Scans I2C bus and displays device addresses. Used for CH224A connection verification.
 
 #### PPS_Test
+
 Test sketch that automatically sweeps PPS voltage from 5.5V to 20.0V in 0.5V steps.
 
 #### Simple_Test
+
 Basic test sketch that automatically switches fixed voltages (5V→9V→12V→15V→20V→28V) every 2 seconds.
 
 ## CH224A Library

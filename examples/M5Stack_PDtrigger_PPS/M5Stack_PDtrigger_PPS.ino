@@ -1,5 +1,5 @@
 /***************************************************
- * M5Stack PD Trigger (CH224K & ACS712xLCTR-05B)
+ * M5Stack PD Trigger (CH224Q & ACS712xLCTR-05B)
  * 2023/08/26
  * Copyright(c) @tomorrow56 all rights reserved
  ****************************************************/
