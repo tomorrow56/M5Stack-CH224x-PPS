@@ -39,19 +39,19 @@ M5Stack-CH224x-PPS/
 ### 必要な部品
 
 - **M5Stack**（M5Unified対応デバイス: Core Basic, Core2, CoreS3等）
-- **CH224A/CH224K** USB PDコントローラ（ESSOP10/DFN10パッケージ）
+- **CH224A/CH224Q** USB PDコントローラ（ESSOP10/DFN10パッケージ）
 - **USB Type-Cコネクタ**
 - **1μFセラミックコンデンサ**（VHV-GND間）
 
 ### ピン接続
 
-| M5Stack       | CH224A          | 説明              |
-|---------------|-----------------|-------------------|
-| GPIO21        | Pin 3 (CFG3/SDA)| I2C データ線      |
-| GPIO22        | Pin 2 (CFG2/SCL)| I2C クロック線    |
-| GND           | Pin 0 (GND)     | グランド          |
-| GPIO2 (※)    | VBUSEN          | 出力イネーブル    |
-| GPIO12 (※)   | Pin 10 (PG)     | Power Good入力    |
+| M5Stack       | CH224A          | 説明               |
+|---------------|-----------------|--------------------|
+| GPIO21        | Pin 3 (CFG3/SDA)| I2C データ線       |
+| GPIO22        | Pin 2 (CFG2/SCL)| I2C クロック線     |
+| GND           | Pin 0 (GND)     | グランド           |
+| GPIO2 (※)    | VBUSEN          | 出力イネーブル     |
+| GPIO12 (※)   | Pin 10 (PG)     | Power Good入力     |
 
 ※ サンプルスケッチで使用。用途に応じて変更可能。
 
