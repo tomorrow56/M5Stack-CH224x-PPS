@@ -235,7 +235,7 @@ MITライセンス - 詳細は [LICENSE](LICENSE) を参照
 
 ## 参考資料
 
-- [CH224Aデータシート](https://wch.cn)
+- [CH224Aデータシート](https://www.wch-ic.com/downloads/CH224DS1_PDF.html)
 - [M5Stack公式ドキュメント](https://docs.m5stack.com)
 - [M5Unified GitHub](https://github.com/m5stack/M5Unified)
 - [USB Power Delivery仕様](https://www.usb.org/usb-charger-pd)
