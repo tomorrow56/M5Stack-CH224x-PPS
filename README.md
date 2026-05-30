@@ -1,6 +1,6 @@
 # M5Stack-CH224x-PPS
 
-An Arduino library and sample sketch collection for controlling CH224A/CH224K USB PD controllers via I2C on M5Stack (M5Unified compatible), with USB PD PPS/AVS mode voltage adjustment.
+An Arduino library and sample sketch collection for controlling CH224A/CH224Q USB PD controllers via I2C on M5Stack (M5Unified compatible), with USB PD PPS/AVS mode voltage adjustment.
 
 ## Features
 
@@ -13,22 +13,25 @@ An Arduino library and sample sketch collection for controlling CH224A/CH224K US
 
 ## Project Structure
 
-```
+```text
 M5Stack-CH224x-PPS/
 ├── src/
 │   ├── CH224A.h          # CH224A library header
 │   └── CH224A.cpp        # CH224A library implementation
 ├── examples/
-│   ├── M5Stack_CH224A_PPS/               # PPS voltage control (with GUI)
 │   ├── M5Stack_PDtrigger_PPS/             # PD Analyzer with PDO decode
 │   └── test/                              # Test and debug sketches
+│       ├── M5Stack_CH224A_PPS/            # PPS voltage control (with GUI)
 │       ├── CH224A_PDO_Test/               # PDO decode test (serial output)
 │       ├── I2C_Scanner/                   # I2C device scanner
 │       ├── PPS_Test/                      # PPS voltage sweep test
 │       └── Simple_Test/                   # Fixed voltage auto-switch test
+├── kicad/                                 # KiCad design files
+│   └── M5_PDtrigger_PPS_v2/               # Hardware design v2
 ├── README_JP.md           # Japanese documentation
-├── LICENSE               # MIT license
-└── README.md
+├── README.md             # This file
+├── WIRING.md             # Detailed wiring information
+└── LICENSE               # MIT license
 ```
 
 ## Hardware Requirements
@@ -42,7 +45,7 @@ M5Stack-CH224x-PPS/
 
 ### Pin Connections
 
-| M5Stack       | CH224A          | Description             |
+| M5Stack       | CH224A          | Description              |
 |---------------|-----------------|--------------------------|
 | GPIO21        | Pin 3 (CFG3/SDA)| I2C data line           |
 | GPIO22        | Pin 2 (CFG2/SCL)| I2C clock line          |
@@ -63,7 +66,7 @@ For detailed wiring information, see [WIRING.md](WIRING.md).
 1. **Add M5Stack Board Manager**:
    - Arduino IDE → File → Preferences
    - Add to "Additional Board Manager URLs":
-     ```
+     ```text
      https://m5stack.oss-cn-shenzhen.aliyuncs.com/resource/arduino/package_m5stack_index.json
      ```
 
@@ -88,12 +91,14 @@ For detailed wiring information, see [WIRING.md](WIRING.md).
 M5Stack PD Analyzer - Main application for USB PD charger analysis and voltage control.
 
 **Key Features**:
+
 - Fixed voltage mode switching (5V/9V/12V/15V/20V)
 - PPS mode voltage adjustment (0.1V steps)
 - PDO Decode screen for detailed Source Capabilities display
 - Real-time voltage/current measurement and PG (Power Good) display
 
 **Operation**:
+
 - **Button A (Left)**: Decrease voltage / Enter PDO Decode at PDO=0
 - **Button B (Center)**: Output ON/OFF toggle
 - **Button C (Right)**: Increase voltage / Enter PPS control at PDO=4 / Exit from PDO Decode
