@@ -1,0 +1,6 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "DAISO_PD-PPS-Charger-rescue")(type "Legacy")(uri "${KIPRJMOD}/M5_PDtrigger_PPS-rescue.lib")(options "")(descr ""))
+  (lib (name "M5_USB_Host_v05-rescue")(type "Legacy")(uri "/Users/masaoyamazaki/Documents/GitHub/kicad/MyProject/M5_USB_Host_v05/M5_USB_Host_v05-rescue.lib")(options "")(descr ""))
+  (lib (name "logo")(type "KiCad")(uri "/Users/masaoyamazaki/Documents/GitHub/kicad/MyLibrary/component/logo.kicad_sym")(options "")(descr ""))
+)
