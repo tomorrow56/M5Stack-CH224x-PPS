@@ -1,6 +1,6 @@
 # M5Stack-CH224x-PPS
 
-M5Stack（M5Unified対応）でCH224A/CH224K USB PDコントローラをI2C経由で制御し、USB PD PPS/AVSモードで電圧を調整するArduinoライブラリおよびサンプルスケッチ集です。
+M5Stack（M5Unified対応）でCH224A/CH224Q USB PDコントローラをI2C経由で制御し、USB PD PPS/AVSモードで電圧を調整するArduinoライブラリおよびサンプルスケッチ集です。
 
 ## 機能
 
