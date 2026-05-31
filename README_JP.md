@@ -28,6 +28,8 @@ M5Stack-CH224x-PPS/
 │       └── Simple_Test/                   # 固定電圧自動切替テスト
 ├── kicad/                                 # KiCad設計ファイル
 │   └── M5_PDtrigger_PPS_v2/               # ハードウェア設計v2
+├── case/                                  # 3Dプリント用ケースファイル
+│   └── M5Stack_PDtrigger/                 # M5Stack PDトリガーケース
 ├── README_JP.md           # 日本語ドキュメント
 ├── README.md             # 本ファイル
 ├── WIRING.md             # 詳細配線ガイド
@@ -58,6 +60,25 @@ M5Stack-CH224x-PPS/
 **重要**: CFG2/CFG3ピンをI2Cとして使用する場合、これらのピンに抵抗を接続しないでください（フローティング状態にする）。
 
 詳細な配線については [WIRING.md](WIRING.md) を参照してください。
+
+## 3Dプリント用ケース
+
+M5Stack PDトリガー用のカスタム3Dプリントケースが利用可能です：
+
+### 利用可能ファイル
+
+- **`case/M5Stack_PDtrigger/PDtrigger_10mm_224A.stl`** - メインケース本体（STL形式）
+- **`case/M5Stack_PDtrigger/PDtrigger_10mm_224A.3mf`** - メインケース本体（3MF形式）
+- **`case/M5Stack_PDtrigger/text.stl`** - テキストラベル・装飾（STL形式）
+
+### 印刷推奨設定
+
+- **レイヤー高さ**: 0.2mm（品重視）
+- **インフィル**: 20-30%
+- **サポート**: 張り出し部に必要
+- **材料**: PLAまたはPETG推奨
+
+このケースはCH224A/CH224Q PDコントローラを収容し、M5Stackデバイスの適切なマウントを提供するよう設計されています。
 
 ## ソフトウェア要件
 

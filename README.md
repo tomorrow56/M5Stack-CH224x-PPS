@@ -28,6 +28,8 @@ M5Stack-CH224x-PPS/
 │       └── Simple_Test/                   # Fixed voltage auto-switch test
 ├── kicad/                                 # KiCad design files
 │   └── M5_PDtrigger_PPS_v2/               # Hardware design v2
+├── case/                                  # 3D printable case files
+│   └── M5Stack_PDtrigger/                 # M5Stack PD Trigger case
 ├── README_JP.md           # Japanese documentation
 ├── README.md             # This file
 ├── WIRING.md             # Detailed wiring information
@@ -58,6 +60,25 @@ M5Stack-CH224x-PPS/
 **Important**: When using CFG2/CFG3 pins as I2C, do not connect resistors to these pins (leave them floating).
 
 For detailed wiring information, see [WIRING.md](WIRING.md).
+
+## 3D Printable Case
+
+A custom 3D printable case is available for the M5Stack PD Trigger:
+
+### Files Available
+
+- **`case/M5Stack_PDtrigger/PDtrigger_10mm_224A.stl`** - Main case body (STL format)
+- **`case/M5Stack_PDtrigger/PDtrigger_10mm_224A.3mf`** - Main case body (3MF format)
+- **`case/M5Stack_PDtrigger/text.stl`** - Text labels/decorations (STL format)
+
+### Printing Recommendations
+
+- **Layer Height**: 0.2mm for quality
+- **Infill**: 20-30% 
+- **Support**: Required for overhangs
+- **Material**: PLA or PETG recommended
+
+The case is designed to accommodate the CH224A/CH224Q PD controller and provide proper mounting for the M5Stack device.
 
 ## Software Requirements
 
